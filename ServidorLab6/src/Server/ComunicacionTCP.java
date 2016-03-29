@@ -10,24 +10,23 @@ import java.net.Socket;
 public class ComunicacionTCP extends Thread{
 
 	// Constantes de protocolo
-	private final static String C_HOLA = "HOLA";
-	private final static String S_INICIO = "INICIO";
-	private final static String C_UBICACION = "UBICACION";
-	private final static String S_ACK = "OK";
-	private final static String C_TERMINAR = "TERMINAR";
-	private final static String S_FIN = "FIN";
-	private final static String S_ERROR = "ERROR";
+	private final static String C_LOGIN = "LOGIN";
+	private final static String S_USUARIO = "USUARIO";
+	private final static String	S_PASSWORD = "PASSWORD";
+	private final static String S_OK = "OK";
+	private final static String S_USUARIO_NOK = "USUARIO INCORRECTO";
+	private final static String S_PASSWORD_NOK = "PASSWORD INCORRECTO";
+	private final static String C_SUBIR = "SUBIR";
+	private final static String C_LISTA = "LISTAR";
 	//------------------------------------------------------------------------------
 
 	private final Socket sockCliente;
 
 	private InputStream in;
-
 	private OutputStream out;
-	private PrintWriter pwArchi;
-	public ComunicacionTCP(Socket cl, PrintWriter nPw, int id){
+
+	public ComunicacionTCP(Socket cl){
 		sockCliente = cl;
-		pwArchi = nPw;
 	}
 
 	/**
@@ -50,29 +49,29 @@ public class ComunicacionTCP extends Thread{
 
 	public void run(){
 		try{
-			in = sockCliente.getInputStream();
-			out = sockCliente.getOutputStream();
-
+			PrintWriter pw = new PrintWriter(out);
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
-			PrintWriter pw = new PrintWriter(out, true);
+			String msjIni = readBR(br);
 
-			String msjCliente = readBR(br);
-			if (msjCliente.equals(C_HOLA)){
-				writePW(pw, S_INICIO);
+			if(msjIni.startsWith(C_LOGIN))
+				iniLogin(br, pw);
 
-				msjCliente = readBR(br);
-				if(msjCliente.startsWith(C_UBICACION)){
-					writePW(pw, S_ACK);
-					String [] datos = msjCliente.split(":::");
-					pwArchi.println(sockCliente.getInetAddress().getHostAddress()+","+datos[1]+ ","+datos[2]+","+datos[3]+","+datos[4]);
-					System.out.println("TCP de "+sockCliente.getInetAddress().getHostAddress()+" - Longitud:"+datos[1]+ ", Latitud: "+datos[2]+", Velocidad: "+datos[3]+", Altitud: "+datos[4]);
+			else{
+
+				String us = msjIni.split(":::")[1];
+				String token = msjIni.split(":::")[2];
+
+				verificarToken(us, token);
+
+				if(msjIni.startsWith(C_SUBIR)){
+
+				}
+
+				else if(msjIni.startsWith(C_LISTA)){
+
 				}
 
 			}
-			else{
-				writePW(pw, S_ERROR);
-			}
-
 		}catch(Exception e){
 			e.printStackTrace();
 
@@ -81,13 +80,29 @@ public class ComunicacionTCP extends Thread{
 				out.close();
 				in.close();
 				sockCliente.close();
-				pwArchi.close();
 			}
 			catch(Exception e){
 				e.printStackTrace();
 			}
 		}
+	}
 
+	// Metodos que manejan el protocolo para cada tipo de acción del usuario
+	public void iniLogin(BufferedReader br, PrintWriter pw) throws Exception{
 
 	}
+
+	public void iniListar(BufferedReader br, PrintWriter pw) throws Exception{
+
+	}
+
+	public void iniSubir(BufferedReader br, PrintWriter pw)throws Exception{
+
+	}
+
+	// Metodos auxiliares
+	public void verificarToken(String us, String token) throws Exception{
+
+	}
+
 }

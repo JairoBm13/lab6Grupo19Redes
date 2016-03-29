@@ -11,7 +11,7 @@ import java.net.Socket;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ServidorUbicacion {
+public class ServidorVideos {
 
 	/**
 	 * Constante que especifica el tiempo máximo en milisegundos que se esperara 
@@ -29,8 +29,10 @@ public class ServidorUbicacion {
 	 */
 	public static final int PUERTO = 8080;
 
-	private final static String UDP = "docs/udp.csv";
-	private final static String TCP = "docs/tcp.csv";
+	/**
+	 * Archivo con los usuarios
+	 */
+	public final static String RUTA_US = "Ruta";
 
 
 	private PrintWriter pwTCP;
@@ -49,7 +51,7 @@ public class ServidorUbicacion {
 	 * @throws IOException Si el socket no pudo ser creado.
 	 */
 	public static void main(String[] args) throws IOException {
-		new ServidorUbicacion().iniciarCom();
+		new ServidorVideos().iniciarCom();
 	}
 
 	/**
@@ -59,27 +61,6 @@ public class ServidorUbicacion {
 		idUDP = 0;
 		idTCP = 0;
 		final ExecutorService pool = Executors.newFixedThreadPool(N_THREADS);
-		try {
-			File archi1 = new File(UDP);
-			File archi2 = new File(TCP);
-			if (!archi1.exists()) {
-				archi1.createNewFile();
-				pwTCP = new PrintWriter(new FileWriter(TCP, true));
-				pwTCP.println("IP cliente,Latitud,Longitud,Velocidad,Altitud");
-				pwTCP.close();
-			}
-
-			if(!archi2.exists()){
-				archi2.createNewFile();
-				pwUDP = new PrintWriter(new FileWriter(UDP, true));
-				pwUDP.println("IP cliente,Latitud,Longitud,Velocidad,Altitud");
-				pwUDP.close();
-			}
-
-		} catch (IOException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
 		Runnable serverRunTCP = new Runnable(){
 
 			@Override
@@ -92,9 +73,8 @@ public class ServidorUbicacion {
 						Socket cliente = servidorSocket.accept();
 
 						cliente.setSoTimeout(TIME_OUT);
-						pwTCP = new PrintWriter(new FileWriter(TCP, true));
 						idTCP++;
-						pool.execute(new ComunicacionTCP(cliente, pwTCP,idTCP));
+						pool.execute(new ComunicacionTCP(cliente));
 					}
 				}catch(Exception e){
 					System.err.println("Ocurrio un error");
@@ -110,43 +90,43 @@ public class ServidorUbicacion {
 			}
 		};
 
-		Runnable serverRunUDP = new Runnable(){
-
-			@Override
-			public void run() {
-				DatagramSocket servidorSocket = null;
-				try{
-					servidorSocket = new DatagramSocket(PUERTO);
-					System.out.println("Listo para recibir conexiones UDP");
-					while(true){
-						byte[] buf = new byte[256];
-						DatagramPacket cliente = new DatagramPacket(buf, buf.length);
-						servidorSocket.receive(cliente);
-						idUDP++;
-						pwUDP = new PrintWriter(new FileWriter(UDP, true));
-						pool.execute(new ComunicacionUDP(servidorSocket, cliente, idUDP, pwUDP));
-					}
-
-				}catch(Exception e){
-					System.err.println("Ocurrio un error");
-					e.printStackTrace();
-				}finally{
-					try{
-						servidorSocket.close();
-					}
-					catch(Exception e){
-						e.printStackTrace();
-					}
-
-				}
-			}
-		};
+//		Runnable serverRunUDP = new Runnable(){
+//
+//			@Override
+//			public void run() {
+//				DatagramSocket servidorSocket = null;
+//				try{
+//					servidorSocket = new DatagramSocket(PUERTO);
+//					System.out.println("Listo para recibir conexiones UDP");
+//					while(true){
+//						byte[] buf = new byte[256];
+//						DatagramPacket cliente = new DatagramPacket(buf, buf.length);
+//						servidorSocket.receive(cliente);
+//						idUDP++;
+//						pwUDP = new PrintWriter(new FileWriter(UDP, true));
+//						pool.execute(new ComunicacionUDP(servidorSocket, cliente, idUDP, pwUDP));
+//					}
+//
+//				}catch(Exception e){
+//					System.err.println("Ocurrio un error");
+//					e.printStackTrace();
+//				}finally{
+//					try{
+//						servidorSocket.close();
+//					}
+//					catch(Exception e){
+//						e.printStackTrace();
+//					}
+//
+//				}
+//			}
+//		};
 
 		Thread serverTCP = new Thread(serverRunTCP);
 		serverTCP.start();
 
-		Thread serverUDP = new Thread(serverRunUDP);
-		serverUDP.start();
+//		Thread serverUDP = new Thread(serverRunUDP);
+//		serverUDP.start();
 
 	}
 
