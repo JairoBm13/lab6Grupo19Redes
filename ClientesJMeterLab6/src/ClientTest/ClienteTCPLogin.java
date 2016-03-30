@@ -28,7 +28,7 @@ public class ClienteTCPLogin extends AbstractJavaSamplerClient{
 	private final static String C_REPRODUCIR = "REPRODUCIR";
 	private final static String S_ERROR = "ERROR";
 	
-	private final static String IP_SERVER = "192.168.0.13";
+	private final static String IP_SERVER = "localhost";
 	private final static int PUERTO_SERVER = 8080;
 
 	private Socket socket;
@@ -50,17 +50,9 @@ public class ClienteTCPLogin extends AbstractJavaSamplerClient{
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
 			PrintWriter pw = new PrintWriter(out, true);
 
-			writePW(pw, C_HOLA);
+			writePW(pw, C_LOGIN + ":::usuario1:::usuario1");
 
 			String sMsj = readBR(br);
-
-			if(sMsj.equals(S_INICIO)){
-
-				writePW(pw,C_UBICACION+":::12312:::32131:::321313:::5535435");
-
-				if(sMsj.equals(S_ACK));
-
-			}
 
 
 

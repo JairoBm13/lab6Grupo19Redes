@@ -11,14 +11,18 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import javax.print.attribute.standard.Severity;
+import javax.swing.JFrame;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-public class ServidorVideos {
+public class ServidorVideos extends JFrame{
 
 	/**
 	 * Constante que especifica el tiempo máximo en milisegundos que se esperara 
@@ -39,7 +43,7 @@ public class ServidorVideos {
 	/**
 	 * Archivo con los usuarios
 	 */
-	public final static String RUTA_US = "Ruta";
+	public final static String RUTA_US = "./data/usuarios.json";
 
 
 	private PrintWriter pwTCP;
@@ -58,14 +62,17 @@ public class ServidorVideos {
 	 * @throws IOException Si el socket no pudo ser creado.
 	 */
 	public static void main(String[] args) throws IOException {
-		new ServidorVideos().iniciarCom();
+		ServidorVideos sv = new ServidorVideos();
+		sv.iniciarCom();
+		sv.setVisible(true);
+		sv.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 	}
-	
+
 	/**
 	 * Hash map que contienen la informacion de login
 	 */
 	public static HashMap<String, String> hashLogin = new HashMap<String, String>();
-	
+
 	/**
 	 * Hash map que contiene la informacion de tokens para verificar si un usuario ha iniciado sesion
 	 */
@@ -75,7 +82,7 @@ public class ServidorVideos {
 	 * Ruta al archivo JSON con la informacion de usuarios
 	 */
 	public final static String RUTA_JSON = "";
-	
+
 	/**
 	 * Metodo que atiende a los usuarios.
 	 */
@@ -112,62 +119,82 @@ public class ServidorVideos {
 			}
 		};
 
-//		Runnable serverRunUDP = new Runnable(){
-//
-//			@Override
-//			public void run() {
-//				DatagramSocket servidorSocket = null;
-//				try{
-//					servidorSocket = new DatagramSocket(PUERTO);
-//					System.out.println("Listo para recibir conexiones UDP");
-//					while(true){
-//						byte[] buf = new byte[256];
-//						DatagramPacket cliente = new DatagramPacket(buf, buf.length);
-//						servidorSocket.receive(cliente);
-//						idUDP++;
-//						pwUDP = new PrintWriter(new FileWriter(UDP, true));
-//						pool.execute(new ComunicacionUDP(servidorSocket, cliente, idUDP, pwUDP));
-//					}
-//
-//				}catch(Exception e){
-//					System.err.println("Ocurrio un error");
-//					e.printStackTrace();
-//				}finally{
-//					try{
-//						servidorSocket.close();
-//					}
-//					catch(Exception e){
-//						e.printStackTrace();
-//					}
-//
-//				}
-//			}
-//		};
+		//		Runnable serverRunUDP = new Runnable(){
+		//
+		//			@Override
+		//			public void run() {
+		//				DatagramSocket servidorSocket = null;
+		//				try{
+		//					servidorSocket = new DatagramSocket(PUERTO);
+		//					System.out.println("Listo para recibir conexiones UDP");
+		//					while(true){
+		//						byte[] buf = new byte[256];
+		//						DatagramPacket cliente = new DatagramPacket(buf, buf.length);
+		//						servidorSocket.receive(cliente);
+		//						idUDP++;
+		//						pwUDP = new PrintWriter(new FileWriter(UDP, true));
+		//						pool.execute(new ComunicacionUDP(servidorSocket, cliente, idUDP, pwUDP));
+		//					}
+		//
+		//				}catch(Exception e){
+		//					System.err.println("Ocurrio un error");
+		//					e.printStackTrace();
+		//				}finally{
+		//					try{
+		//						servidorSocket.close();
+		//					}
+		//					catch(Exception e){
+		//						e.printStackTrace();
+		//					}
+		//
+		//				}
+		//			}
+		//		};
 
 		Thread serverTCP = new Thread(serverRunTCP);
 		serverTCP.start();
 
-//		Thread serverUDP = new Thread(serverRunUDP);
-//		serverUDP.start();
+		//		Thread serverUDP = new Thread(serverRunUDP);
+		//		serverUDP.start();
 
 	}
 
-	
+
 	public void cargarTablasHash(){
 		JSONParser parser = new JSONParser();
-		
+
 		try{
 			Object obj = parser.parse(new FileReader(RUTA_JSON));
 
 			JSONObject jsonObject = (JSONObject) obj;
-			
+
 			for(Iterator iterator = jsonObject.keySet().iterator(); iterator.hasNext();) {
-			    String key = (String) iterator.next();
-			    
-			    hashLogin.put(key, (String) jsonObject.get(key));
+				String key = (String) iterator.next();
+
+				hashLogin.put(key, (String) jsonObject.get(key));
 			}
-			
+
 		}catch(Exception e){
+			e.printStackTrace();
+		}
+	}
+	
+	public void dispose(){
+		JSONObject obj = new JSONObject();
+		Iterator it = hashLogin.entrySet().iterator();
+		while (it.hasNext()) {
+			Map.Entry pair = (Map.Entry)it.next();
+			obj.put(pair.getKey(), pair.getValue());
+			it.remove(); // avoids a ConcurrentModificationException
+		}
+
+		try {
+			FileWriter file = new FileWriter(RUTA_US, true);
+			file.write(obj.toJSONString());
+			file.flush();
+			file.close();
+
+		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}

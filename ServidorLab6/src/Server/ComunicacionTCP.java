@@ -168,7 +168,7 @@ public class ComunicacionTCP extends Thread{
 		if(passStored==null){
 
 			ServidorVideos.hashLogin.put(us, encriptar(pass));
-
+			System.out.println(ServidorVideos.hashLogin.get(us));
 			Path ruta = Paths.get(RUTA_BASE +us);
 			if (Files.notExists(ruta)){
 				new File(RUTA_BASE+us).mkdirs();
