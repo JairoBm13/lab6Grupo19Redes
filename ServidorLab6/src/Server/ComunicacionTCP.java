@@ -22,8 +22,6 @@ public class ComunicacionTCP extends Thread{
 	// Constantes de protocolo
 	private final static String C_LOGIN = "LOGIN";
 	private final static String C_REGISTRAR = "REGISTRAR";
-	private final static String S_USUARIO = "USUARIO";
-	private final static String	S_PASSWORD = "PASSWORD";
 	private final static String S_LOGOK = "LOGIN OK";
 	private final static String S_REGOK = "REGISTRO OK";
 	private final static String S_REGNOK = "REGISTRO NO OK";
@@ -33,27 +31,35 @@ public class ComunicacionTCP extends Thread{
 	private final static String C_SUBIR = "SUBIR";
 	private final static String C_LISTA = "LISTAR";
 	private final static String C_LOGOUT = "LOGOUT";
+	private final static String C_REPRODUCIR = "REPRODUCIR";
+	private final static String S_ERROR = "ERROR";
 	//------------------------------------------------------------------------------
 
 	/**
 	 * Ruta base de la carpeta raiz de los videos de usuarios
 	 */
-	private final static String RUTA_BASE = "";
+	private final static String RUTA_BASE = "usuarios/vids_";
 
 
-	private final Socket sockCliente;
+	private Socket sockCliente;
 
 	private InputStream in;
 	private OutputStream out;
 
 	public ComunicacionTCP(Socket cl){
-		sockCliente = cl;
+		try{
+			sockCliente = cl;
+			in = cl.getInputStream();
+			out = cl.getOutputStream();
+		}catch(Exception e){
+			e.printStackTrace();
+		}
 	}
 
 
 	// Constantes para encriptacion
 	private static final String ALGO = "AES";
-	private static final byte[] KEY = "BestKeyEver".getBytes();
+	private static final byte[] KEY = "TheBestSecretKey".getBytes();
 
 	/**
 	 * Metodo auxiliar para leer mensaje por el socket e imprimir en consola los mensajes de comunicacion
@@ -74,9 +80,11 @@ public class ComunicacionTCP extends Thread{
 
 
 	public void run(){
+		PrintWriter pw = null;
+		BufferedReader br = null;
 		try{
-			PrintWriter pw = new PrintWriter(out);
-			BufferedReader br = new BufferedReader(new InputStreamReader(in));
+			pw = new PrintWriter(out);
+			br = new BufferedReader(new InputStreamReader(in));
 			String msjIni = readBR(br);
 
 			if(msjIni.startsWith(C_LOGIN))
@@ -103,6 +111,11 @@ public class ComunicacionTCP extends Thread{
 			}
 		}catch(Exception e){
 			e.printStackTrace();
+			try {
+				writePW(pw, S_ERROR);
+			} catch (Exception e1) {
+				e1.printStackTrace();
+			}
 
 		}finally{
 			try{
@@ -126,6 +139,7 @@ public class ComunicacionTCP extends Thread{
 		if (passStored!=null){
 			String decryptPassStored = desencriptar(passStored);
 			if(decryptPassStored.equals(pass)){
+
 				SecureRandom random = new SecureRandom();
 				byte bytes[] = new byte[20];
 				random.nextBytes(bytes);
@@ -183,7 +197,16 @@ public class ComunicacionTCP extends Thread{
 	}
 	// Metodos auxiliares
 	public void verificarToken(String us, String token) throws Exception{
-		
+		String tokStorage = ServidorVideos.hashToken.get(us);
+		if(tokStorage!=null){
+			if(!token.equals(tokStorage)){
+				throw new Exception("El token no es invalido");
+			}
+		}
+		else{
+			throw new Exception("Usuario no existe");
+		}
+
 	}
 
 	// Metodos de encriptacion / desencriptacion

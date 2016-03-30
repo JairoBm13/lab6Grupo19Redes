@@ -12,14 +12,23 @@ import org.apache.jmeter.protocol.java.sampler.AbstractJavaSamplerClient;
 import org.apache.jmeter.protocol.java.sampler.JavaSamplerContext;
 import org.apache.jmeter.samplers.SampleResult;
 
-public class ClienteTCP extends AbstractJavaSamplerClient{
+public class ClienteTCPRegistro extends AbstractJavaSamplerClient{
 
-	private final static String C_HOLA = "HOLA";
-	private final static String S_INICIO = "INICIO";
-	private final static String C_UBICACION = "UBICACION";
-	private final static String S_ACK = "OK";
+	private final static String C_LOGIN = "LOGIN";
+	private final static String C_REGISTRAR = "REGISTRAR";
+	private final static String S_LOGOK = "LOGIN OK";
+	private final static String S_REGOK = "REGISTRO OK";
+	private final static String S_REGNOK = "REGISTRO NO OK";
+	private final static String S_OK = "OK";
+	private final static String S_USUARIO_NOK = "USUARIO INCORRECTO";
+	private final static String S_PASSWORD_NOK = "PASSWORD INCORRECTO";
+	private final static String C_SUBIR = "SUBIR";
+	private final static String C_LISTA = "LISTAR";
+	private final static String C_LOGOUT = "LOGOUT";
+	private final static String C_REPRODUCIR = "REPRODUCIR";
+	private final static String S_ERROR = "ERROR";
 
-	private final static String IP_SERVER = "192.168.0.13";
+	private final static String IP_SERVER = "localhost";
 	private final static int PUERTO_SERVER = 8080;
 
 	private Socket socket;
@@ -41,19 +50,9 @@ public class ClienteTCP extends AbstractJavaSamplerClient{
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
 			PrintWriter pw = new PrintWriter(out, true);
 
-			writePW(pw, C_HOLA);
+			writePW(pw, C_REGISTRAR + ":::usuario1:::usuario1");
 
 			String sMsj = readBR(br);
-
-			if(sMsj.equals(S_INICIO)){
-
-				writePW(pw,C_UBICACION+":::12312:::32131:::321313:::5535435");
-
-				if(sMsj.equals(S_ACK));
-
-			}
-
-
 
 		}catch(Exception e){
 			exito = false;
