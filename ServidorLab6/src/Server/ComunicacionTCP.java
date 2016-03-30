@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.security.SecureRandom;
 
 public class ComunicacionTCP extends Thread{
 
@@ -89,7 +90,11 @@ public class ComunicacionTCP extends Thread{
 
 	// Metodos que manejan el protocolo para cada tipo de acción del usuario
 	public void iniLogin(BufferedReader br, PrintWriter pw) throws Exception{
-
+		
+		SecureRandom random = new SecureRandom();
+	    byte bytes[] = new byte[20];
+	    random.nextBytes(bytes);
+	    String token = bytes.toString();
 	}
 
 	public void iniListar(BufferedReader br, PrintWriter pw) throws Exception{
