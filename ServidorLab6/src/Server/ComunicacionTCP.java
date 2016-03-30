@@ -38,7 +38,7 @@ public class ComunicacionTCP extends Thread{
 	/**
 	 * Ruta base de la carpeta raiz de los videos de usuarios
 	 */
-	private final static String RUTA_BASE = "usuarios/vids_";
+	private final static String RUTA_BASE = "/usuarios/vids_";
 
 
 	private Socket sockCliente;

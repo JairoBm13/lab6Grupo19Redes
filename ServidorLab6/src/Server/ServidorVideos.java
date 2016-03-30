@@ -43,7 +43,7 @@ public class ServidorVideos extends JFrame{
 	/**
 	 * Archivo con los usuarios
 	 */
-	public final static String RUTA_US = "./data/usuarios.json";
+	public final static String RUTA_US = "/data/usuarios.json";
 
 
 	private PrintWriter pwTCP;
@@ -81,7 +81,7 @@ public class ServidorVideos extends JFrame{
 	/**
 	 * Ruta al archivo JSON con la informacion de usuarios
 	 */
-	public final static String RUTA_JSON = "";
+	public final static String RUTA_JSON = "usuariosLog.json";
 
 	/**
 	 * Metodo que atiende a los usuarios.
@@ -89,6 +89,14 @@ public class ServidorVideos extends JFrame{
 	public void iniciarCom() {
 		idUDP = 0;
 		idTCP = 0;
+		File fison = new File(RUTA_JSON);
+		if(!fison.exists()){
+			try {
+				fison.createNewFile();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 		final ExecutorService pool = Executors.newFixedThreadPool(N_THREADS);
 		Runnable serverRunTCP = new Runnable(){
 
@@ -197,6 +205,7 @@ public class ServidorVideos extends JFrame{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		System.exit(0);
 	}
-
+	
 }
