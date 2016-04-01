@@ -172,8 +172,8 @@ public class ComunicacionTCP extends Thread{
 			if (Files.notExists(ruta)){
 				new File(RUTA_BASE+us).mkdirs();
 			}
-
 			writePW(pw, S_REGOK);
+			ServidorVideos.guardar(us, pass);
 		}
 		else{
 			writePW(pw, S_REGNOK);
