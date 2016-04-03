@@ -16,6 +16,8 @@ import java.security.SecureRandom;
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.apache.commons.codec.binary.Base64;
+
 public class ComunicacionTCP extends Thread{
 
 	// Constantes de protocolo
@@ -214,7 +216,7 @@ public class ComunicacionTCP extends Thread{
 			Key key = new SecretKeySpec(KEY, ALGO);
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.ENCRYPT_MODE, key);
-			byte[] encValCoded = value.getBytes("UTF8");
+			byte[] encValCoded = Base64.encodeBase64(value.getBytes());
 			byte[] encrVal = c.doFinal(encValCoded);
 			String msjEncriptar = new String(encrVal) ;
 			return msjEncriptar;
@@ -229,8 +231,9 @@ public class ComunicacionTCP extends Thread{
 			Key key = new SecretKeySpec(KEY, ALGO);
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.DECRYPT_MODE, key);
-			byte[] decrpValue = c.doFinal(value.getBytes());
-			String msjDesencriptar = new String(decrpValue, "UTF8");
+			byte[] decrpValueEnc = c.doFinal(value.getBytes());
+			byte[] decrpValue = Base64.decodeBase64(decrpValueEnc );
+			String msjDesencriptar = new String(decrpValue);
 			return msjDesencriptar;
 		}catch(Exception e){
 			e.printStackTrace();
