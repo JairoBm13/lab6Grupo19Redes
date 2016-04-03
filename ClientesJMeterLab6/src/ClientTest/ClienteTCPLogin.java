@@ -28,7 +28,7 @@ public class ClienteTCPLogin extends AbstractJavaSamplerClient{
 	private final static String C_REPRODUCIR = "REPRODUCIR";
 	private final static String S_ERROR = "ERROR";
 	
-	private final static String IP_SERVER = "157.253.227.156";
+	private final static String IP_SERVER = "52.165.29.8";
 	private final static int PUERTO_SERVER = 8080;
 
 	private Socket socket;

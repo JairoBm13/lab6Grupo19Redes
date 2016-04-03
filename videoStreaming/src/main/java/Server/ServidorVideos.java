@@ -22,7 +22,7 @@ import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
-public class ServidorVideos extends JFrame{
+public class ServidorVideos{
 
 	/**
 	 * Constante que especifica el tiempo máximo en milisegundos que se esperara 
@@ -33,7 +33,7 @@ public class ServidorVideos extends JFrame{
 	/**
 	 * Constante que especifica el numero de threads que se usan en el pool de conexiones.
 	 */
-	public static final int N_THREADS = 4;
+	public static final int N_THREADS = 2;
 
 	/**
 	 * Puerto en el cual escucha el servidor.
@@ -43,7 +43,7 @@ public class ServidorVideos extends JFrame{
 	/**
 	 * Archivo con los usuarios
 	 */
-	public final static String RUTA_US = "/data/usuarios.json";
+	public final static String RUTA_US = "usuariosLog.json";
 
 
 	private PrintWriter pwTCP;
@@ -64,8 +64,6 @@ public class ServidorVideos extends JFrame{
 	public static void main(String[] args) throws IOException {
 		ServidorVideos sv = new ServidorVideos();
 		sv.iniciarCom();
-		sv.setVisible(true);
-		sv.setDefaultCloseOperation(DISPOSE_ON_CLOSE);
 	}
 
 	/**
@@ -186,14 +184,9 @@ public class ServidorVideos extends JFrame{
 		}
 	}
 	
-	public void dispose(){
+	public static void guardar(String us, String pass){
 		JSONObject obj = new JSONObject();
-		Iterator it = hashLogin.entrySet().iterator();
-		while (it.hasNext()) {
-			Map.Entry pair = (Map.Entry)it.next();
-			obj.put(pair.getKey(), pair.getValue());
-			it.remove(); // avoids a ConcurrentModificationException
-		}
+		obj.put(us, pass);		
 
 		try {
 			FileWriter file = new FileWriter(RUTA_US, true);
@@ -204,7 +197,6 @@ public class ServidorVideos extends JFrame{
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		System.exit(0);
 	}
 	
 }

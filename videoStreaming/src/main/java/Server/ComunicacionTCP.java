@@ -12,7 +12,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.Key;
 import java.security.SecureRandom;
-import java.util.Base64;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -173,7 +172,7 @@ public class ComunicacionTCP extends Thread{
 			if (Files.notExists(ruta)){
 				new File(RUTA_BASE+us).mkdirs();
 			}
-
+			ServidorVideos.guardar(us, pass);
 			writePW(pw, S_REGOK);
 		}
 		else{
