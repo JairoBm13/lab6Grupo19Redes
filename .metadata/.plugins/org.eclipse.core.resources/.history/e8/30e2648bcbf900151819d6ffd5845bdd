@@ -1,0 +1,11 @@
+package Server;
+
+import java.net.DatagramSocket;
+import java.net.SocketException;
+
+import javax.imageio.ImageIO;
+import javax.sound.sampled.LineUnavailableException;
+
+public class CanalStreaming {
+	
+}

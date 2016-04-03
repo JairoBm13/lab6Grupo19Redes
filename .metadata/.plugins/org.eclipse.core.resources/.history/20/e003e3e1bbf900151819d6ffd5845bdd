@@ -1,0 +1,8 @@
+package Server;
+
+import com.sun.jna.Native;
+import com.sun.jna.NativeLibrary;
+
+public class CanalStreaming {
+
+}
