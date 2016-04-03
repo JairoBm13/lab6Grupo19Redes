@@ -114,10 +114,10 @@ public class CanalStreaming {
 		 * 'simplicity' of code, not correctness. It is beyond the scope of this demo to make a full fledged video player.
 		 */
 
-		// Calculate the time BEFORE we start playing.
-		long systemStartTime = System.nanoTime();
 		// Set units for the system time, which because we used System.nanoTime will be in nanoseconds.
 		final Rational systemTimeBase = Rational.make(1, 1000000000);
+		// Calculate the time BEFORE we start playing.
+		long systemStartTime = System.nanoTime();
 		// All the MediaPicture objects decoded from the videoDecoder will share this timebase.
 		final Rational streamTimebase = videoDecoder.getTimeBase();
 
@@ -182,7 +182,7 @@ public class CanalStreaming {
 	/**
 	 * Takes the video picture and displays it at the right time.
 	 */
-	private static BufferedImage displayVideoAtCorrectTime(long streamStartTime,
+	public static BufferedImage displayVideoAtCorrectTime(long streamStartTime,
 			final MediaPicture picture, final MediaPictureConverter converter,
 			BufferedImage image, final ImageFrame window, long systemStartTime,
 			final Rational systemTimeBase, final Rational streamTimebase)

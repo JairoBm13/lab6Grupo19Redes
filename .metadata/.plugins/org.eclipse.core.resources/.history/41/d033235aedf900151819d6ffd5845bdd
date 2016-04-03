@@ -1,0 +1,446 @@
+package com.uniandes.streaming.server;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+
+import javax.imageio.ImageIO;
+import javax.sound.sampled.LineUnavailableException;
+
+import com.xuggle.xuggler.Global;
+import com.xuggle.xuggler.IAudioSamples;
+import com.xuggle.xuggler.ICodec;
+import com.xuggle.xuggler.IContainer;
+import com.xuggle.xuggler.IPacket;
+import com.xuggle.xuggler.IPixelFormat;
+import com.xuggle.xuggler.IStream;
+import com.xuggle.xuggler.IStreamCoder;
+import com.xuggle.xuggler.IVideoPicture;
+import com.xuggle.xuggler.IVideoResampler;
+import com.xuggle.xuggler.Utils;
+
+public class StreamingChannel extends Thread {
+
+	/**
+	 * Network 
+	 */
+	//Adress of the streaming
+	private String address;
+	//Socket where the packets (audio and image) will be sent
+	private DatagramSocket socket;
+
+
+	/**
+	 * Video Packet 
+	 */
+	//Size of the image packet header
+	public static final int HEADER_SIZE = 3;
+	//Indicator of image package
+	public static final int IMG_FLAG = 2;
+	//Size of the sounf packet header
+	public static final int SOUND_HEADER_SIZE = 11;
+	//Indicator of AUFIO package
+	public static final int AUDIO_FLAG = 3;
+
+	//Elements of the sound packet header needed to create an audioFormat in the client
+	private int sampleRateSound;
+	private int sampleFormatSound;
+	private int channelsSound;
+
+	/**	
+	 * Video 
+	 */
+	private String videoFileName;
+
+	//Timestamps to calculate when to send the image packet after audio packet has been sent
+	private long mSystemVideoClockStartTime;
+	private long mFirstVideoTimestampInStream;
+
+	private IStreamCoder videoCoder;
+	private int videoStreamId;
+	private int audioStreamId;
+	private IStreamCoder audioCoder;
+
+	private IVideoResampler resampler;
+
+	//Xuggle container that has the file streams and packets
+	private IContainer container;
+
+	public StreamingChannel (String fileName, String address, int port) {
+		this.videoFileName = fileName;
+		this.address = address;
+		try {
+			//Open the socket connection
+			socket = new DatagramSocket(port);
+		}
+		catch (SocketException e1) {
+			e1.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public synchronized void setUp () {
+		// Create a Xuggler container object
+		container = IContainer.make();
+
+		// Open up the container
+		if (container.open(videoFileName, IContainer.Type.READ, null) < 0)
+			throw new IllegalArgumentException("could not open file: " + videoFileName);
+
+		// query how many streams the call to open found
+		int numStreams = container.getNumStreams();
+
+		// and iterate through the streams to find the first audio stream
+		videoStreamId = -1;
+		videoCoder = null;
+		audioStreamId = -1;
+		audioCoder = null;
+
+		for(int i = 0; i < numStreams; i++)
+		{
+			// Find the stream object
+			IStream stream = container.getStream(i);
+
+			// Get the pre-configured decoder that can decode this stream;
+			IStreamCoder coder = stream.getStreamCoder();
+
+			if (videoStreamId == -1 && coder.getCodecType() == ICodec.Type.CODEC_TYPE_VIDEO)
+			{
+				videoStreamId = i;
+				videoCoder = coder;
+			}
+			else if (audioStreamId == -1 && coder.getCodecType() == ICodec.Type.CODEC_TYPE_AUDIO)
+			{
+				audioStreamId = i;
+				audioCoder = coder;
+			}
+		}
+
+		if (videoStreamId == -1 && audioStreamId == -1)
+			throw new RuntimeException("could not find audio or video stream in container: "+videoFileName);
+
+		resampler = null;
+		if (videoCoder != null)
+		{
+			if(videoCoder.open() < 0)
+				throw new RuntimeException("could not open audio decoder for container: "+videoFileName);
+
+			if (videoCoder.getPixelType() != IPixelFormat.Type.BGR24)
+			{
+				// if this stream is not in BGR24, we're going to need to
+				// convert it.  The VideoResampler does that for us.
+				resampler = IVideoResampler.make(videoCoder.getWidth(), videoCoder.getHeight(), IPixelFormat.Type.BGR24,
+						videoCoder.getWidth(), videoCoder.getHeight(), videoCoder.getPixelType());
+				if (resampler == null)
+					throw new RuntimeException("could not create color space resampler for: " + videoFileName);
+			}
+		}
+
+		if (audioCoder != null)
+		{
+			if (audioCoder.open() < 0)
+				throw new RuntimeException("could not open audio decoder for container: "+videoFileName);
+
+			try
+			{
+				setupJavaSound(audioCoder);
+			}
+			catch (LineUnavailableException ex)
+			{
+				throw new RuntimeException("unable to open sound device on your system when playing back container: "+videoFileName);
+			}
+		}
+	}
+
+	public void run () {
+		while (true) {
+			setUp();
+			stream();
+		}
+	
+	}
+	
+	public synchronized int containerRead (IPacket pack) {
+		return container.readNextPacket(pack);
+	}
+	
+	public void stream () {
+
+		//we start walking through the container looking at each packet.
+		IPacket packet = IPacket.make(576);
+		mFirstVideoTimestampInStream = Global.NO_PTS;
+		mSystemVideoClockStartTime = 0;
+
+		if (container != null) {
+			
+			while(containerRead(packet) >= 0 )
+			{
+
+				if (packet.getStreamIndex() == videoStreamId)
+				{
+
+					// We allocate a new picture to get the data out of Xuggler
+					IVideoPicture picture = IVideoPicture.make(videoCoder.getPixelType(), videoCoder.getWidth(), videoCoder.getHeight());
+
+					// Now, we decode the video, checking for any errors.
+					int bytesDecoded = videoCoder.decodeVideo(picture, packet, 0);
+					if (bytesDecoded < 0)
+						throw new RuntimeException("got error decoding audio in: " + videoFileName);
+
+					//check if got a complete picture from the decoder
+					if (picture.isComplete())
+					{
+						IVideoPicture newPic = picture;
+						/*
+						 * If the resampler is not null, that means we didn't get the video in BGR24 format and
+						 * need to convert it into BGR24 format.
+						 */
+						if (resampler != null)
+						{
+							// we must resample
+							newPic = IVideoPicture.make(resampler.getOutputPixelFormat(), picture.getWidth(), picture.getHeight());
+							if (resampler.resample(newPic, picture) < 0)
+								throw new RuntimeException("could not resample video from: " + videoFileName);
+						}
+						if (newPic.getPixelType() != IPixelFormat.Type.BGR24)
+							throw new RuntimeException("could not decode video as BGR 24 bit data in: " + videoFileName);
+
+						long delay = millisecondsUntilTimeToDisplay(newPic);
+						// if there is no audio stream; go ahead and hold up the main thread.  We'll end
+						// up caching fewer video pictures in memory that way.
+						try
+						{
+							if (delay > 0)
+								Thread.sleep(delay);
+							sendImagePackage(newPic);
+						}
+						catch (InterruptedException e)
+						{
+							return;
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+				else if (packet.getStreamIndex() == audioStreamId) {
+
+					// allocate a set of samples with the same number of channels in this buffer.
+					// Xuggler will probably allocate more space than just the 1024
+
+					IAudioSamples samples = IAudioSamples.make(1024, audioCoder.getChannels());
+
+
+					//A packet can actually contain multiple sets of samples (or frames of samples
+					//in audio-decoding speak).  So, we may need to call decode audio multiple
+					//times at different offsets in the packet's data.  We capture that here.
+
+					int offset = 0;
+
+
+					//Keep going until we've processed all data
+
+					while(offset < packet.getSize())
+					{
+						int bytesDecoded = audioCoder.decodeAudio(samples, packet, offset);
+						if (bytesDecoded < 0)
+							throw new RuntimeException("got error decoding audio in: " + videoFileName);
+						offset += bytesDecoded;
+
+						// Some decoder will consume data in a packet, but will not be able to construct
+						// a full set of samples yet.  Therefore we should always check if we
+						// got a complete set of samples from the decoder
+
+						if (samples.isComplete())
+						{
+							// note: this call will block if Java's sound buffers fill up, and we're
+							// okay with that.  That's why we have the video "sleeping" occur
+							// on another thread.
+							try {
+								sendSoundPackage(samples);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
+							}
+						}
+					}
+				}
+				else
+				{
+					do {} while(false);
+				}
+			}
+		}
+		else {
+			System.out.println("No video container");
+		}
+
+		//Clean up
+
+		if (videoCoder != null)
+		{
+			videoCoder.close();
+			videoCoder = null;
+		}
+		if (audioCoder != null)
+		{
+			audioCoder.close();
+			audioCoder = null;
+		}
+		if (container !=null)
+		{
+			container.close();
+			container = null;
+		}
+
+	}
+
+	private void sendSoundPackage(IAudioSamples samples) throws IOException {
+		// send all samples to the line
+		byte[] rawBytes = samples.getData().getByteArray(0, samples.getSize());
+
+		//Payload array (real image bytes)
+		byte[] payload;
+		payload = rawBytes;
+		int payload_size = payload.length;
+
+		//Header array. Used to tell the client if it its delaing with a sound or image package and the size of the payload 
+		byte[] header = new byte[SOUND_HEADER_SIZE];
+
+		//Indicates an img package
+		header[0] = (byte) AUDIO_FLAG;
+
+		//Indicates size of package
+		header[1] = (byte)(payload_size >> 8);
+		header[2] = (byte)payload_size;
+
+		//Parameter to create line
+		header[3] = (byte)(sampleRateSound >> 8);
+		header[4] = (byte)sampleRateSound;
+		header[5] = (byte)(sampleFormatSound >> 8);
+		header[6] = (byte)sampleFormatSound;
+		header[7] = (byte)(channelsSound >> 8);
+		header[8] = (byte) channelsSound;
+		header[9] = (byte)(samples.getSize() >> 8);
+		header[10] = (byte) samples.getSize();
+
+		byte[] packet_img =  new byte[SOUND_HEADER_SIZE+payload_size];
+
+		// construct the packet = header + payload
+		for (int i = 0; i < SOUND_HEADER_SIZE; i++)
+			packet_img[i] = header[i];
+		for (int i = 0; i < payload_size; i++)
+			packet_img[i + SOUND_HEADER_SIZE] = payload[i];
+
+		// send it
+		InetAddress group = InetAddress.getByName(address);
+		DatagramPacket packet_send = new DatagramPacket(packet_img, packet_img.length,group, 4445);
+		socket.send(packet_send);
+
+	}
+
+	/**
+	 * Setups the necessary parameters to open a SourceDataLine to play the sound in the client
+	 * @param aAudioCoder
+	 * @throws LineUnavailableException
+	 */
+	private void setupJavaSound(IStreamCoder aAudioCoder) throws LineUnavailableException
+	{
+		sampleRateSound = aAudioCoder.getSampleRate();
+		sampleFormatSound = (int)IAudioSamples.findSampleBitDepth(aAudioCoder.getSampleFormat());
+		channelsSound = aAudioCoder.getChannels();
+
+	}
+
+	/**
+	 * The following code does a poor-man's version of trying to
+	 * match up the frame-rate requested for each IVideoPicture with the system
+	 * clock time on computer.
+	 * 
+	 * All Xuggler IAudioSamples and IVideoPicture objects always
+	 * give timestamps in Microseconds, relative to the first decoded item.  If
+	 * instead used the packet timestamps, they can be in different units depending
+	 * on  IContainer, and IStream.
+	 * @param picture
+	 * @return millisecondsUntilTimeToDisplay
+	 */
+	private long millisecondsUntilTimeToDisplay(IVideoPicture picture)
+	{
+
+		long millisecondsToSleep = 0;
+		if (mFirstVideoTimestampInStream == Global.NO_PTS)
+		{
+			// This is our first time through
+			mFirstVideoTimestampInStream = picture.getTimeStamp();
+			// get the starting clock time so we can hold up frames
+			// until the right time.
+			mSystemVideoClockStartTime = System.currentTimeMillis();
+			millisecondsToSleep = 0;
+		} else {
+			long systemClockCurrentTime = System.currentTimeMillis();
+			long millisecondsClockTimeSinceStartofVideo = systemClockCurrentTime - mSystemVideoClockStartTime;
+			// compute how long for this frame since the first frame in the stream.
+			// remember that IVideoPicture and IAudioSamples timestamps are always in MICROSECONDS,
+			// so we divide by 1000 to get milliseconds.
+			long millisecondsStreamTimeSinceStartOfVideo = (picture.getTimeStamp() - mFirstVideoTimestampInStream)/1000;
+			final long millisecondsTolerance = 50; // and we give ourselfs 50 ms of tolerance
+			millisecondsToSleep = (millisecondsStreamTimeSinceStartOfVideo -
+					(millisecondsClockTimeSinceStartofVideo+millisecondsTolerance));
+		}
+		return millisecondsToSleep;
+	}
+
+	/**
+	 * Sends and image packet to the client
+	 * @param picture the image to be sent
+	 * @throws IOException
+	 */
+	private void sendImagePackage (IVideoPicture picture) throws IOException {
+
+		//Create the image packageF
+		//Payload array (real image bytes)
+		byte[] payload;
+		payload = bufferedImageToByteArray(Utils.videoPictureToImage(picture), "jpg");
+		int payload_size = payload.length;
+
+		//Header array. Used to tell the client if it its delaing with a sound or image package and the size of the payload 
+		byte[] header = new byte[HEADER_SIZE];
+		//Indicates an img package
+		header[0] = (byte) IMG_FLAG;
+		//Indicates size of package
+		header[1] = (byte)(payload_size >> 8);
+		header[2] = (byte)payload_size;
+
+		//Byte array of total package
+		byte[] packet_img =  new byte[HEADER_SIZE+payload_size];
+		// construct the packet = header + payload
+		for (int i = 0; i < HEADER_SIZE; i++)
+			packet_img[i] = header[i];
+		for (int i = 0; i < payload_size; i++)
+			packet_img[i + HEADER_SIZE] = payload[i];
+
+		// send the package
+		InetAddress group = InetAddress.getByName(address);
+		DatagramPacket packet_send = new DatagramPacket(packet_img, packet_img.length,group, 4445);
+		socket.send(packet_send);
+	}
+
+	/**
+	 * Converts BufferedImage to byte array
+	 * @param image Image to convert
+	 * @param format Image format (JPEG, PNG or GIF)
+	 * @return Byte Array
+	 * @throws IOException
+	 */
+	public static byte[] bufferedImageToByteArray(BufferedImage image, String format) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ImageIO.write(image, format, baos);
+		return baos.toByteArray();
+	}
+
+
+}

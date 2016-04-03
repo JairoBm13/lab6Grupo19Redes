@@ -1,0 +1,314 @@
+package Server;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
+
+import javax.imageio.ImageIO;
+import javax.sound.sampled.LineUnavailableException;
+
+import io.humble.video.Decoder;
+import io.humble.video.Demuxer;
+import io.humble.video.DemuxerStream;
+import io.humble.video.Global;
+import io.humble.video.MediaAudio;
+import io.humble.video.MediaDescriptor;
+import io.humble.video.MediaPacket;
+import io.humble.video.MediaPicture;
+import io.humble.video.PixelFormat.Type;
+import io.humble.video.awt.MediaPictureConverter;
+import io.humble.video.awt.MediaPictureConverterFactory;
+import io.humble.video.javaxsound.AudioFrame;
+import io.humble.video.javaxsound.MediaAudioConverter;
+import io.humble.video.javaxsound.MediaAudioConverterFactory;
+
+public class StreamChannel extends Thread{
+
+	//------------------------------------
+	// Constants
+	//------------------------------------
+	//Size of the image packet header
+	public static final int HEADER_SIZE = 3;
+	//Indicator of image package
+	public static final int IMG_FLAG = 2;
+	//Size of the sounf packet header
+	public static final int SOUND_HEADER_SIZE = 11;
+	//Indicator of AUFIO package
+	public static final int AUDIO_FLAG = 3;
+	//------------------------------------
+	// Attributes
+	//------------------------------------
+
+	/**
+	 * Networking
+	 */
+	private String address;
+	private DatagramSocket socket;
+
+	/**
+	 * Sound
+	 */
+	private int sampleRateSound;
+	private int sampleFormatSound;
+	private int channelSound;
+
+	/**
+	 * Video
+	 */
+	private String videoFile;
+
+	/**
+	 * Timers
+	 */
+	private long systemVideoClockStartTime;
+	private long firstVideoTimeStampInStream;
+
+	private Demuxer demuxerContainer;
+
+	private int videoStreamId;
+	private int audioStreamId;
+
+	private Decoder videoDecoder;
+	private Decoder audioDecoder;
+
+
+	//------------------------------------
+	// Constructor
+	//------------------------------------
+
+	public StreamChannel(String fileName, String address, int port){
+		this.videoFile = fileName;
+		this.address = address;
+		try {
+			socket = new DatagramSocket(port);
+		} catch (SocketException e) {
+			e.printStackTrace();
+		}
+	}
+
+	//------------------------------------
+	// Run
+	//------------------------------------
+
+	public void run(){
+		while(true){
+			setUp();
+			stream();
+		}
+	}
+
+	//------------------------------------
+	// Public Methods
+	//------------------------------------
+
+	public synchronized void setUp(){
+		try {
+			demuxerContainer = Demuxer.make();
+			//Open the demuxer with the filename passed on.
+			demuxerContainer.open(videoFile, null, false, true, null, null);
+			//Query how many streams the call to open found
+			int numStreams = demuxerContainer.getNumStreams();
+
+			videoStreamId = -1;
+			audioStreamId = -1;
+			videoDecoder = null;
+			audioDecoder = null;
+			for(int i = 0; i < numStreams; i++)
+			{
+				DemuxerStream stream = demuxerContainer.getStream(i);
+				Decoder decoder = stream.getDecoder();
+				if (videoStreamId == -1 && decoder != null && decoder.getCodecType() == MediaDescriptor.Type.MEDIA_VIDEO) {
+					videoStreamId = i;
+					videoDecoder = decoder;
+				}
+				else if(audioStreamId == -1 && decoder != null && decoder.getCodecType() == MediaDescriptor.Type.MEDIA_AUDIO){
+					audioStreamId = i;
+					audioDecoder = decoder;
+				}
+			}
+
+			if (videoStreamId == -1 && audioStreamId == -1)
+				throw new RuntimeException("could not find audio or video stream in container: "+videoFile);
+
+			setupJavaSound(audioDecoder);
+			if (videoDecoder != null) {
+				videoDecoder.open(null, null);
+			}
+			if (audioDecoder != null)
+			{
+				audioDecoder.open(null, null);
+				setupJavaSound(audioDecoder);
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	public void stream(){
+		MediaPacket packet = MediaPacket.make(576);
+		firstVideoTimeStampInStream = Global.NO_PTS;
+		systemVideoClockStartTime = 0;
+		if(demuxerContainer != null){
+			try {
+				while (read(packet) >= 0) {
+					if(packet.getStreamIndex() == videoStreamId){
+						MediaPicture picture = MediaPicture.make(videoDecoder.getWidth(), videoDecoder.getHeight(), videoDecoder.getPixelFormat());
+						int offset = 0;
+						int byteRead = 0;
+						while(offset < packet.getSize()){
+							byteRead += videoDecoder.decodeVideo(picture, packet, 0);
+							if(picture.isComplete()){
+								
+							}
+							offset += byteRead;
+						}
+					}else if(packet.getStreamIndex() == audioStreamId){
+						MediaAudio sample = MediaAudio.make(audioDecoder.getFrameSize(), audioDecoder.getSampleRate(), audioDecoder.getChannels(), audioDecoder.getChannelLayout(), audioDecoder.getSampleFormat());
+						MediaAudioConverter converter = MediaAudioConverterFactory.createConverter(MediaAudioConverterFactory.DEFAULT_JAVA_AUDIO,sample);
+						AudioFrame audioFrame = AudioFrame.make(converter.getJavaFormat());
+						int offset = 0;
+						while(offset < packet.getSize()){
+							int bytesDecoded = audioDecoder.decodeAudio(sample, packet, offset);
+							offset += bytesDecoded;
+							if (sample.isComplete())
+							{
+								// note: this call will block if Java's sound buffers fill up, and we're
+								// okay with that.  That's why we have the video "sleeping" occur
+								// on another thread.
+								try {
+									sendSoundPackage(sample);
+								} catch (IOException e) {
+									e.printStackTrace();
+								}
+							}
+						}
+					}else{
+						do {} while(false);
+					}
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	public synchronized int read(MediaPacket packet) throws InterruptedException, IOException{
+		return demuxerContainer.read(packet);
+	}
+	
+	public static byte[] bufferedImageToByteArray(BufferedImage image, String format) throws IOException {
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		ImageIO.write(image, format, baos);
+		return baos.toByteArray();
+	}
+
+	//------------------------------------
+	// Private Methods
+	//------------------------------------
+
+	private void setupJavaSound(Decoder audioDecoder){
+		sampleRateSound = audioDecoder.getSampleRate();
+		sampleFormatSound = audioDecoder.getSampleFormat().ordinal();
+		channelSound = audioDecoder.getChannels();
+	}
+	
+	private long millisecondsUntilTimeToDisplay(MediaPicture pic){
+		long millsToSleep = 0;
+		if(firstVideoTimeStampInStream== Global.NO_PTS){
+			firstVideoTimeStampInStream = pic.getTimeStamp();
+			systemVideoClockStartTime = System.currentTimeMillis();
+			millsToSleep = 0;
+		}else{
+			long currentTime = System.currentTimeMillis();
+			long ClockTimeSinceStart = currentTime - systemVideoClockStartTime;
+			long millisSinceStart = (pic.getTimeStamp() - firstVideoTimeStampInStream)/1000;
+			long tolerance = 50;
+			millsToSleep = (millisSinceStart -(ClockTimeSinceStart+tolerance));
+		}
+		return millsToSleep;
+	}
+	
+	private void sendImagePackage(MediaPicture pic) throws IOException{
+		byte[] payload;
+		
+		MediaPictureConverter converter = 
+				MediaPictureConverterFactory.createConverter(
+						MediaPictureConverterFactory.HUMBLE_BGR_24,
+						pic);
+		BufferedImage image = null;
+		
+		payload = bufferedImageToByteArray(converter.toImage(image, pic), "jpg");
+		int payload_size = payload.length;
+
+		//Header array. Used to tell the client if it its delaing with a sound or image package and the size of the payload 
+		byte[] header = new byte[HEADER_SIZE];
+		//Indicates an img package
+		header[0] = (byte) IMG_FLAG;
+		//Indicates size of package
+		header[1] = (byte)(payload_size >> 8);
+		header[2] = (byte)payload_size;
+
+		//Byte array of total package
+		byte[] packet_img =  new byte[HEADER_SIZE+payload_size];
+		// construct the packet = header + payload
+		for (int i = 0; i < HEADER_SIZE; i++)
+			packet_img[i] = header[i];
+		for (int i = 0; i < payload_size; i++)
+			packet_img[i + HEADER_SIZE] = payload[i];
+
+		// send the package
+		InetAddress group = InetAddress.getByName(address);
+		DatagramPacket packet_send = new DatagramPacket(packet_img, packet_img.length,group, 4445);
+		socket.send(packet_send);
+	}
+	
+	private void sendSoundPackage(MediaAudio samples) throws IOException {
+		// send all samples to the line
+		byte[] rawBytes = samples.getData(0).getByteArray(0, samples.getPacketSize());
+
+		//Payload array (real image bytes)
+		byte[] payload;
+		payload = rawBytes;
+		int payload_size = payload.length;
+
+		//Header array. Used to tell the client if it its delaing with a sound or image package and the size of the payload 
+		byte[] header = new byte[SOUND_HEADER_SIZE];
+
+		//Indicates an img package
+		header[0] = (byte) AUDIO_FLAG;
+
+		//Indicates size of package
+		header[1] = (byte)(payload_size >> 8);
+		header[2] = (byte)payload_size;
+
+		//Parameter to create line
+		header[3] = (byte)(sampleRateSound >> 8);
+		header[4] = (byte)sampleRateSound;
+		header[5] = (byte)(sampleFormatSound >> 8);
+		header[6] = (byte)sampleFormatSound;
+		header[7] = (byte)(channelSound >> 8);
+		header[8] = (byte) channelSound;
+		header[9] = (byte)(samples.getPacketSize() >> 8);
+		header[10] = (byte) samples.getPacketSize();
+
+		byte[] packet_img =  new byte[SOUND_HEADER_SIZE+payload_size];
+
+		// construct the packet = header + payload
+		for (int i = 0; i < SOUND_HEADER_SIZE; i++)
+			packet_img[i] = header[i];
+		for (int i = 0; i < payload_size; i++)
+			packet_img[i + SOUND_HEADER_SIZE] = payload[i];
+		// send it
+		InetAddress group = InetAddress.getByName(address);
+		DatagramPacket packet_send = new DatagramPacket(packet_img, packet_img.length,group, 4445);
+		socket.send(packet_send);
+	}
+}
