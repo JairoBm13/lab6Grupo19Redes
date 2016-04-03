@@ -216,9 +216,9 @@ public class ComunicacionTCP extends Thread{
 			Key key = new SecretKeySpec(KEY, ALGO);
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.ENCRYPT_MODE, key);
-			byte[] encValCoded = Base64.encodeBase64(value.getBytes());
-			byte[] encrVal = c.doFinal(encValCoded);
-			String msjEncriptar = new String(encrVal) ;
+			byte[] encrVal = c.doFinal(value.getBytes());
+			byte[] encValCoded = Base64.encodeBase64(encrVal);
+			String msjEncriptar = new String(encValCoded) ;
 			return msjEncriptar;
 		}catch(Exception e){
 			e.printStackTrace();
@@ -231,9 +231,9 @@ public class ComunicacionTCP extends Thread{
 			Key key = new SecretKeySpec(KEY, ALGO);
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.DECRYPT_MODE, key);
-			byte[] decrpValueEnc = c.doFinal(value.getBytes());
-			byte[] decrpValue = Base64.decodeBase64(decrpValueEnc );
-			String msjDesencriptar = new String(decrpValue);
+			byte[] decrpValue = Base64.decodeBase64(value);
+			byte[] decrpValueEnc = c.doFinal(decrpValue);
+			String msjDesencriptar = new String(decrpValueEnc);
 			return msjDesencriptar;
 		}catch(Exception e){
 			e.printStackTrace();
