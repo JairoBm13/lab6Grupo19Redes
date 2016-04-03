@@ -214,7 +214,8 @@ public class ComunicacionTCP extends Thread{
 			Key key = new SecretKeySpec(KEY, ALGO);
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.ENCRYPT_MODE, key);
-			byte[] encrVal = c.doFinal(value.getBytes());
+			byte[] encValCoded = value.getBytes("UTF8");
+			byte[] encrVal = c.doFinal(encValCoded);
 			String msjEncriptar = new String(encrVal) ;
 			return msjEncriptar;
 		}catch(Exception e){
@@ -229,7 +230,7 @@ public class ComunicacionTCP extends Thread{
 			Cipher c = Cipher.getInstance(ALGO);
 			c.init(Cipher.DECRYPT_MODE, key);
 			byte[] decrpValue = c.doFinal(value.getBytes());
-			String msjDesencriptar = new String(decrpValue);
+			String msjDesencriptar = new String(decrpValue, "UTF8");
 			return msjDesencriptar;
 		}catch(Exception e){
 			e.printStackTrace();

@@ -53,7 +53,8 @@ public class ClienteTCPLogin extends AbstractJavaSamplerClient{
 			writePW(pw, C_LOGIN + ":::usuario1:::usuario1");
 
 			String sMsj = readBR(br);
-
+			if (sMsj.equals(S_USUARIO_NOK) || sMsj.equals(S_PASSWORD_NOK))
+				exito = false;
 
 
 		}catch(Exception e){
