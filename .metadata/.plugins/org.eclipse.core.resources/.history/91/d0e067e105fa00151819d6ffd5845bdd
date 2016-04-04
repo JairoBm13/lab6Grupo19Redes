@@ -115,6 +115,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		}else if(UPLOAD.equals(comando)){
 			createJFileChooser();
 		}
+		
 	}
 
 	public void valueChanged(ListSelectionEvent e) {

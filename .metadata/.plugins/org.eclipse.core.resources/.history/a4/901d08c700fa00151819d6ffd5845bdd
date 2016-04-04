@@ -14,12 +14,17 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.Timer;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+
+import com.uniandes.streaming.client.Channel;
+import com.uniandes.streaming.client.LoginClient;
+
 
 public class IntVideo extends JFrame implements ActionListener,ListSelectionListener{
 	
@@ -33,6 +38,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 	private final static String PAUSE = "PAUSE";
 	private final static String UPLOAD = "UPLOAD";
 
+	private JFrame f = new JFrame("Client");
 	private JButton setupButton = new JButton("Setup");
 	private JButton playButton = new JButton("Play");
 	private JButton pauseButton = new JButton("Pause");
@@ -45,7 +51,6 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 	private JList<Canal> list;
 	
 	public IntVideo(ClienteTCP tcpClient){
-		super("Streaming");
 		this.addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
 				System.exit(0);
@@ -70,9 +75,9 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		mainPanel.add(iconLabel,BorderLayout.CENTER);
 		mainPanel.add(buttonPanel,BorderLayout.SOUTH);
 
-		getContentPane().add(mainPanel, BorderLayout.CENTER);
-		setSize(new Dimension(600,370));
-
+		f.getContentPane().add(mainPanel, BorderLayout.CENTER);
+		f.setSize(new Dimension(600,370));
+		f.setVisible(true);
 
 		Timer time = new Timer(1,this);
 		Timer time2 = new Timer(5000, this);
@@ -115,6 +120,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		}else if(UPLOAD.equals(comando)){
 			createJFileChooser();
 		}
+		
 	}
 
 	public void valueChanged(ListSelectionEvent e) {

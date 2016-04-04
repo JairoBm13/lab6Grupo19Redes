@@ -103,9 +103,4 @@ public class ClienteTCP extends Thread{
 		// TODO Auto-generated method stub
 		
 	}
-
-	public static String register(String text, char[] password) {
-		// TODO Auto-generated method stub
-		return null;
-	}
 }

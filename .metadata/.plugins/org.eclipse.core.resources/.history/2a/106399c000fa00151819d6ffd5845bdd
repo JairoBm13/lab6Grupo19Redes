@@ -14,12 +14,16 @@ import javax.swing.JFileChooser;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.ListSelectionModel;
 import javax.swing.Timer;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+
+import com.uniandes.streaming.client.LoginClient;
+
 
 public class IntVideo extends JFrame implements ActionListener,ListSelectionListener{
 	
@@ -33,6 +37,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 	private final static String PAUSE = "PAUSE";
 	private final static String UPLOAD = "UPLOAD";
 
+	private JFrame f = new JFrame("Client");
 	private JButton setupButton = new JButton("Setup");
 	private JButton playButton = new JButton("Play");
 	private JButton pauseButton = new JButton("Pause");
@@ -40,12 +45,10 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 	private JPanel mainPanel = new JPanel();
 	private JPanel buttonPanel = new JPanel();
 	private JLabel iconLabel = new JLabel();
-	private ClienteUDP clientUDP;
-	private ClienteTCP clientTCP;
+	private ClienteUDP client;
 	private JList<Canal> list;
 	
-	public IntVideo(ClienteTCP tcpClient){
-		super("Streaming");
+	public IntVideo(){
 		this.addWindowListener(new WindowAdapter() {
 			public void windowClosing(WindowEvent e) {
 				System.exit(0);
@@ -70,18 +73,17 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		mainPanel.add(iconLabel,BorderLayout.CENTER);
 		mainPanel.add(buttonPanel,BorderLayout.SOUTH);
 
-		getContentPane().add(mainPanel, BorderLayout.CENTER);
-		setSize(new Dimension(600,370));
-
+		f.getContentPane().add(mainPanel, BorderLayout.CENTER);
+		f.setSize(new Dimension(600,370));
+		f.setVisible(true);
 
 		Timer time = new Timer(1,this);
 		Timer time2 = new Timer(5000, this);
 
-		clientUDP = new ClienteUDP(time);
-		clientTCP = tcpClient;
+		client = new ClienteUDP(time);
 		time2.start();
 
-		Canal[] channelList = clientUDP.getChannels();
+		Canal[] channelList = client.getChannels();
 		list = new JList<Canal>(channelList); //data has type Object[]
 		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		list.setLayoutOrientation(JList.HORIZONTAL_WRAP);
@@ -100,26 +102,34 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		   if (open != null) {
 			   String file= open.getAbsolutePath();
 			   String name= open.getName();
-			   String result = clientTCP.sendVideo(file,name);
+			   String result = loginClient.sendVideo(file,name);
+			   if (result.equals(LoginClient.UDPLOADING))
+			   {
+				   JOptionPane.showMessageDialog(jp,"el cliente esta ocupado subiendo un archivo");
+			   }
+			   else if (result.equals(LoginClient.FREE)){
+				   JOptionPane.showMessageDialog(jp,"se ha terminado de subir el archivo");
+			   }
 		   }
+		   
 	 }
 
 	public void actionPerformed(ActionEvent arg0) {
 		String comando = arg0.getActionCommand();
 		if(SETUP.equals(comando)){
-			clientUDP.setup();
+			client.setup();
 		}else if(PLAY.equals(comando)){
-			clientUDP.play();
+			client.play();
 		}else if(PAUSE.equals(comando)){
-			clientUDP.pause();
+			client.pause();
 		}else if(UPLOAD.equals(comando)){
 			createJFileChooser();
 		}
+		
 	}
 
 	public void valueChanged(ListSelectionEvent e) {
-		Canal selectedChannel = list.getSelectedValue();
-		if (selectedChannel != null)
-			clientUDP.selectChannel(selectedChannel);
+		// TODO Auto-generated method stub
+		
 	}
 }

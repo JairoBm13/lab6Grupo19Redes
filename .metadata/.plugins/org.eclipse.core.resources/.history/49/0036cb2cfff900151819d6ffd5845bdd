@@ -240,4 +240,6 @@ public class ComunicacionTCP extends Thread{
 			return "Nope";
 		}
 	}
+	
+	public 
 }	

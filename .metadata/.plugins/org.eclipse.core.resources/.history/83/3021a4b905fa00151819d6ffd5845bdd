@@ -29,6 +29,11 @@ public class StreamSelector extends TimerTask{
 		
 	}
 	
+	private void createVideoChannels() {
+		// TODO Auto-generated method stub
+		
+	}
+	
 	public ArrayList<String> getVideoChannels () {
 		return videoChannels;
 	}
