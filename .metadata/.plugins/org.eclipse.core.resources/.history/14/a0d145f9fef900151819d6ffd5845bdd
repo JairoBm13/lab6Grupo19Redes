@@ -1,0 +1,199 @@
+package com.uniandes.streaming.server;
+
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.Properties;
+
+
+
+public class TCPThread extends Thread
+{
+
+	private Socket tcpSocket;
+	private BufferedReader in;
+	private PrintWriter out;
+	private Properties prop;
+	public static String LOGIN = "LOGIN" ;
+	public static String REGISTER = "REGISTER";
+	public static String VIDEO_UPLOAD = "VIDEO_UPLOAD";
+	public static String FILE_RECEIVED = "FILE RECEIVED";
+
+
+	public TCPThread(Socket socket, int id, Properties prop) throws Exception
+	{
+		this.prop = prop;
+		this.tcpSocket = socket;
+		//read the message received from client
+		in = new BufferedReader(new InputStreamReader(tcpSocket.getInputStream()));
+		out = new PrintWriter(new BufferedWriter(new OutputStreamWriter(tcpSocket.getOutputStream( ))),true);
+	}
+
+	public void run()
+	{
+		try {
+			String message =in.readLine();
+			System.out.println(message);
+			while ( message != null) {
+				if (message.equals(LOGIN)){
+					login();
+				}else if (message.equals(REGISTER)){
+					register();
+				}else if (message.equals(VIDEO_UPLOAD)) {
+					uploadVideo();
+				}
+				else {
+					System.out.println("UNEXPECTED MESSAGE");
+				}
+				message =in.readLine();
+			}
+			tcpSocket.close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
+	}
+
+	public void login()
+	{
+		try
+		{
+			String login=in.readLine();
+			String[] array= login.split(";");
+			String userName= array[1];
+			String pwd= array[2];
+			String [] users=prop.getProperty("user").split(",");
+			String [] pwds= prop.getProperty("pwd").split(",");
+			int longitud=users.length;
+			System.out.println(longitud);
+			boolean encontrado= false;
+			boolean valido= false;
+			for (int i=0; i< longitud   && !encontrado; i++)
+			{   
+				if(users[i].equals(userName))
+				{
+					System.out.println(users[i]);
+					encontrado=true;
+					if (pwds[i].equals(pwd))
+					{  
+						valido= true;
+					}
+				}
+
+			}
+			if(valido)
+			{
+				out.println("OK");
+			}
+			else 
+			{  
+				out.println("NOK");
+			}
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	public void register () {
+
+		try
+		{
+			String login=in.readLine();
+			String[] array= login.split(";");
+			String userName= array[1];
+			String pwd= array[2];
+			System.out.println(userName + " pass "+ pwd);
+			String usernames = prop.getProperty("user");
+			prop.setProperty("user",usernames+","+ userName);
+			prop.setProperty("pwd",prop.getProperty("pwd")+","+ pwd);
+			OutputStream salida = null;
+			salida = new FileOutputStream("bd.properties");
+			prop.store(salida, null);
+			System.out.println("enviando rta");
+			out.println("OK");
+			System.out.println("rta enviada");
+		}
+		catch(Exception e)
+		{
+			e.printStackTrace();
+		}
+	}
+
+	public static void execShellCmd(String cmd) {
+		try {
+			Runtime runtime = Runtime.getRuntime();
+			Process process = runtime.exec(new String[] { "/bin/bash", "-c", cmd });
+			int exitValue = process.waitFor();
+			System.out.println("exit value: " + exitValue);
+			BufferedReader buf = new BufferedReader(new InputStreamReader(process.getInputStream()));
+			String line = "";
+			while ((line = buf.readLine()) != null) {
+				System.out.println("exec response: " + line);
+			}
+		} catch (Exception e) {
+			System.out.println(e);
+		}
+	}
+
+	public static void main(String[] args) {
+		String fileName = "movie1.mp4";
+		//String shellCommand = "/home/infracom/workspace/ExecuteScript/uploads/./something.sh";
+		String shellCommand = "/home/infracom/workspace/ExecuteScript/uploads/./resize_video.sh " +fileName + " " + fileName.replace(".mp4", "")+"stream.mp4";
+		System.out.println(shellCommand);
+		execShellCmd(shellCommand);
+		System.out.println("aqui");
+	}
+
+	public void uploadVideo () {
+
+		try {
+
+			String hello = "";
+			String fileName = in.readLine();
+			out.println(FILE_RECEIVED);
+			Socket uploadVideo = null;
+
+
+			uploadVideo = StreamingServer.uploadFileSocket.accept();
+			BufferedReader br = new BufferedReader(new InputStreamReader(uploadVideo.getInputStream()));
+			hello = br.readLine();
+			System.out.println(hello);
+
+
+			FileOutputStream salida = new FileOutputStream("uploads/"+fileName);
+			System.out.println("data/"+fileName);
+			BufferedOutputStream buffer= new BufferedOutputStream(salida);
+			InputStream uploadIn = (InputStream) uploadVideo.getInputStream();
+
+			//No of bytes read in one read() call
+			int bytesRead = 0; 
+			byte[] contenido = new byte[10000];
+			while((bytesRead=uploadIn.read(contenido))!=-1)
+				salida.write(contenido, 0, bytesRead); 
+			salida.flush(); 
+			uploadIn.close(); 
+
+			String shellCommand = "/home/infracom/workspace/ExecuteScript/uploads/./resize_video.sh " +fileName + " " + fileName.replace(".mp4", "")+"stream.mp4";
+			//String shellCommand = "/home/infracom/workspace/ExecuteScript/uploads/./something.sh";
+			execShellCmd(shellCommand);
+			System.out.println("aqui");
+			StreamingServer.addChannel("data/"+ fileName.replace(".mp4", "")+"stream.mp4");
+
+
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+}

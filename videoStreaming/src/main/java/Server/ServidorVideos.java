@@ -4,21 +4,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.print.attribute.standard.Severity;
-import javax.swing.JFrame;
-
-import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 
@@ -44,10 +36,6 @@ public class ServidorVideos{
 	 * Archivo con los usuarios
 	 */
 	public final static String RUTA_US = "usuariosLog.json";
-
-
-	private PrintWriter pwTCP;
-	private PrintWriter pwUDP;
 
 	/**
 	 * Id de los clientes
@@ -124,44 +112,8 @@ public class ServidorVideos{
 			}
 		};
 
-		//		Runnable serverRunUDP = new Runnable(){
-		//
-		//			@Override
-		//			public void run() {
-		//				DatagramSocket servidorSocket = null;
-		//				try{
-		//					servidorSocket = new DatagramSocket(PUERTO);
-		//					System.out.println("Listo para recibir conexiones UDP");
-		//					while(true){
-		//						byte[] buf = new byte[256];
-		//						DatagramPacket cliente = new DatagramPacket(buf, buf.length);
-		//						servidorSocket.receive(cliente);
-		//						idUDP++;
-		//						pwUDP = new PrintWriter(new FileWriter(UDP, true));
-		//						pool.execute(new ComunicacionUDP(servidorSocket, cliente, idUDP, pwUDP));
-		//					}
-		//
-		//				}catch(Exception e){
-		//					System.err.println("Ocurrio un error");
-		//					e.printStackTrace();
-		//				}finally{
-		//					try{
-		//						servidorSocket.close();
-		//					}
-		//					catch(Exception e){
-		//						e.printStackTrace();
-		//					}
-		//
-		//				}
-		//			}
-		//		};
-
 		Thread serverTCP = new Thread(serverRunTCP);
 		serverTCP.start();
-
-		//		Thread serverUDP = new Thread(serverRunUDP);
-		//		serverUDP.start();
-
 	}
 
 
@@ -173,8 +125,8 @@ public class ServidorVideos{
 
 			JSONObject jsonObject = (JSONObject) obj;
 
-			for(Iterator iterator = jsonObject.keySet().iterator(); iterator.hasNext();) {
-				String key = (String) iterator.next();
+			for(Iterator<String> iterator = jsonObject.keySet().iterator(); iterator.hasNext();) {
+				String key =  iterator.next();
 
 				hashLogin.put(key, (String) jsonObject.get(key));
 			}

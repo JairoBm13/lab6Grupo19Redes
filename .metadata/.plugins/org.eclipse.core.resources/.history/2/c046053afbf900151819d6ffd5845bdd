@@ -1,0 +1,236 @@
+package com.uniandes.streaming.client;
+
+import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.GridLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.io.File;
+
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.ListSelectionModel;
+import javax.swing.Timer;
+import javax.swing.border.EmptyBorder;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+
+
+
+public class ClientFrontEnd {
+
+	//LOGIN GUI
+
+	private JFrame login = new JFrame("Login");
+	private JPanel contentPane;
+	private JPanel jp;
+	private PanelLogin panelLogin;
+	private LoginClient loginClient;
+
+	//GUI
+	//----
+	private JFrame f = new JFrame("Client");
+	private JButton setupButton = new JButton("Setup");
+	private JButton playButton = new JButton("Play");
+	private JButton pauseButton = new JButton("Pause");
+	private JButton tearButton = new JButton("Upload");
+	private JPanel mainPanel = new JPanel();
+	private JPanel buttonPanel = new JPanel();
+	private JLabel iconLabel = new JLabel();
+	private ImageIcon icon;
+	private StreamingClient client;
+	private JList list;
+
+
+
+	public ClientFrontEnd() {
+
+		//Login Fame
+
+		login.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		login.setBounds(100, 100, 450, 300);
+		contentPane = new JPanel();
+		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
+		contentPane.setLayout(new BorderLayout(0, 0));
+		panelLogin = new PanelLogin(this);
+		contentPane.add(panelLogin, BorderLayout.CENTER);
+		login.setContentPane(contentPane);
+
+		loginClient= new LoginClient();
+		login.setVisible(true);
+		
+
+	}
+
+	public void afterLogin () {
+		//Frame
+		f.addWindowListener(new WindowAdapter() {
+			public void windowClosing(WindowEvent e) {
+				System.exit(0);
+			}
+		});
+		mainPanel.setLayout(new BorderLayout(0, 0));
+
+		//Buttons
+		buttonPanel.setLayout(new GridLayout(1,0));
+		buttonPanel.add(setupButton);
+		buttonPanel.add(playButton);
+		buttonPanel.add(pauseButton);
+		buttonPanel.add(tearButton);
+		setupButton.addActionListener(new setupButtonListener());
+		playButton.addActionListener(new playButtonListener());
+		pauseButton.addActionListener(new pauseButtonListener());
+		tearButton.addActionListener(new tearButtonListener());
+
+
+		//Image display label
+		iconLabel.setIcon(null);
+		mainPanel.add(iconLabel,BorderLayout.CENTER);
+		mainPanel.add(buttonPanel,BorderLayout.SOUTH);
+
+		f.getContentPane().add(mainPanel, BorderLayout.CENTER);
+		f.setSize(new Dimension(600,370));
+		f.setVisible(true);
+
+		Timer time = new Timer(1, new timerListener());
+		Timer time2 = new Timer(5000, new channelListener());
+
+		client = new StreamingClient(time);
+		time2.start();
+
+		Channel [] channelList = client.getChannels();
+		list = new JList(channelList); //data has type Object[]
+		list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		list.setLayoutOrientation(JList.HORIZONTAL_WRAP);
+		list.setVisibleRowCount(-1);
+		ListSelectionHandler listSelectionListener = new ListSelectionHandler();
+		list.addListSelectionListener(listSelectionListener);
+		JScrollPane listScroller = new JScrollPane(list);
+		listScroller.setPreferredSize(new Dimension(100, 500));
+		mainPanel.add(listScroller, BorderLayout.EAST);
+
+	}
+
+	class setupButtonListener implements ActionListener{
+		public void actionPerformed(ActionEvent e){
+			client.setup();
+		}
+	}
+
+	class playButtonListener implements ActionListener {
+		public void actionPerformed(ActionEvent e){
+			client.play();
+		}
+	}
+
+	class pauseButtonListener implements ActionListener {
+		public void actionPerformed(ActionEvent e){
+			client.pause();
+		}
+	}
+
+	class tearButtonListener implements ActionListener {
+		public void actionPerformed(ActionEvent e){
+			createJFileChooser();
+		}
+	}
+
+	public static void main(String argv[]) throws Exception
+	{
+		//Create a Client object
+		ClientFrontEnd cf = new ClientFrontEnd();
+	}
+
+	class timerListener implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			icon =  client.getImage();
+			iconLabel.setIcon(icon);
+		} 
+	}
+
+	class channelListener implements ActionListener {
+		public void actionPerformed(ActionEvent e) {
+			Channel [] channelList = client.getChannels();
+			int selected = list.getSelectedIndex();
+			list.setListData(channelList);
+			list.setSelectedIndex(selected);
+		} 
+	}
+
+	class ListSelectionHandler implements ListSelectionListener {
+		public void valueChanged(ListSelectionEvent e) {
+			Channel selectedChannel = (Channel) list.getSelectedValue();
+			if (selectedChannel != null)
+				client.selectChannel(selectedChannel);
+		}
+	}
+
+	public void login(String text, char[] password) {
+		try 
+		{
+			loginClient.login(text, password);
+			panelLogin.setVisible(false);
+			contentPane.setVisible(false);
+			login.setVisible(false);
+			afterLogin();
+		} 
+		catch (Exception e)
+		{
+			JOptionPane.showMessageDialog(login,"Usuario y/o password incorrectos.");
+			panelLogin.setVisible(false);
+			contentPane.remove(panelLogin);
+			PanelLogin x =new PanelLogin(this);
+			contentPane.add(x);
+			login.setVisible(true);
+		}
+
+	}
+
+	public void registro(String text, char[] password) {
+		System.out.println(new String(password, 0, password.length));
+		try {
+			String result = loginClient.register(text, password);
+			if (result.equals("registered")){
+				JOptionPane.showMessageDialog(login,"Usted ha sido registrado");
+				panelLogin.setVisible(false);
+				contentPane.setVisible(false);
+				login.setVisible(false);
+				afterLogin();
+			}
+		} catch (Exception e) {
+			JOptionPane.showMessageDialog(login,e.getMessage());
+		}
+
+	}
+	
+	 public void createJFileChooser()
+	 {
+		  JFileChooser fileChooser=new JFileChooser();
+		   fileChooser.showOpenDialog(null);
+		   File open=fileChooser.getSelectedFile();
+		   if (open != null) {
+			   String file= open.getAbsolutePath();
+			   String name= open.getName();
+			   String result = loginClient.sendVideo(file,name);
+			   if (result.equals(LoginClient.UDPLOADING))
+			   {
+				   JOptionPane.showMessageDialog(jp,"el cliente esta ocupado subiendo un archivo");
+			   }
+			   else if (result.equals(LoginClient.FREE)){
+				   JOptionPane.showMessageDialog(jp,"se ha terminado de subir el archivo");
+			   }
+		   }
+		   
+	 }
+	 
+
+}
