@@ -1,11 +1,7 @@
 package Server;
 
 import java.io.File;
-import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.TimerTask;
 public class StreamSelector extends TimerTask{
@@ -62,22 +58,8 @@ public class StreamSelector extends TimerTask{
 
 	@Override
 	public void run() {
-		String message = "";
-		for (String chann : videoChannels) {
-			message += chann + CHAN_SEP;
-		}
-		//send the packet as a DatagramPacket over the UDP socket 
-		InetAddress addr;
-		try {
-			addr = InetAddress.getByName("224.0.0.3");
-			int port = 4446;
-			byte [] sendData = message.getBytes();
-			DatagramPacket senddp = new DatagramPacket(sendData, sendData.length, addr, port);
-			socket.send(senddp);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
+		// TODO Auto-generated method stub
+		
 	}
+
 }

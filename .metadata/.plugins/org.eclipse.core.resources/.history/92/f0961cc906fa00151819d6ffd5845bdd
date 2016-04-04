@@ -36,9 +36,6 @@ public class ServidorVideos{
 	 * Archivo con los usuarios
 	 */
 	public final static String RUTA_US = "usuariosLog.json";
-	
-	public final static String ADDR = "224.0.0.";
-	public final static String VIDEO_SEP = "&";
 
 	/**
 	 * Id de los clientes

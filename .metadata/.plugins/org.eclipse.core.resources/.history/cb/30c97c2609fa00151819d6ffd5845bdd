@@ -109,9 +109,6 @@ public class ComunicacionTCP extends Thread{
 				else if(msjIni.startsWith(C_LOGOUT)){
 					iniLogout(us, pw);
 				}
-				else if(msjIni.startsWith(C_REPRODUCIR)){
-					iniReproduccion();
-				}
 			}
 		}catch(Exception e){
 			e.printStackTrace();
@@ -131,11 +128,6 @@ public class ComunicacionTCP extends Thread{
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public void iniReproduccion() {
-		// TODO Auto-generated method stub
-		
 	}
 
 	// Metodos que manejan el protocolo para cada tipo de acción del usuario
