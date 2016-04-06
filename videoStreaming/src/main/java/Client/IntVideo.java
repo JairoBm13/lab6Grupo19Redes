@@ -116,7 +116,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 			createJFileChooser();
 		}
 	}
-
+	
 	public void valueChanged(ListSelectionEvent e) {
 		Canal selectedChannel = list.getSelectedValue();
 		if (selectedChannel != null)

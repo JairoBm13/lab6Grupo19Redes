@@ -1,7 +1,9 @@
 package Server;
 
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -84,7 +86,7 @@ public class ComunicacionTCP extends Thread{
 		PrintWriter pw = null;
 		BufferedReader br = null;
 		try{
-			pw = new PrintWriter(out);
+			pw = new PrintWriter(out, true);
 			br = new BufferedReader(new InputStreamReader(in));
 			String msjIni = readBR(br);
 
@@ -101,7 +103,7 @@ public class ComunicacionTCP extends Thread{
 				verificarToken(us, token);
 
 				if(msjIni.startsWith(C_SUBIR)){
-
+					iniSubir(br, pw, us);
 				}
 				else if(msjIni.startsWith(C_LISTA)){
 
@@ -135,7 +137,7 @@ public class ComunicacionTCP extends Thread{
 
 	public void iniReproduccion() {
 		// TODO Auto-generated method stub
-		
+
 	}
 
 	// Metodos que manejan el protocolo para cada tipo de acción del usuario
@@ -194,8 +196,24 @@ public class ComunicacionTCP extends Thread{
 
 	}
 
-	public void iniSubir(BufferedReader br, PrintWriter pw)throws Exception{
-
+	public void iniSubir(BufferedReader br, PrintWriter pw, String us)throws Exception{
+		writePW(pw, S_OK);
+		byte[] array = new byte[60000];
+		FileOutputStream fos = new FileOutputStream(RUTA_BASE + "tempVideo.mp4");
+		BufferedOutputStream bos = new BufferedOutputStream(fos);
+		int actual = 0;
+		int bytesRead = in.read(array, 0, array.length);
+		actual = bytesRead;
+		do{
+			bytesRead = in.read(array,actual,(array.length-actual));
+			if(bytesRead >= 0) actual += bytesRead;
+		} while(bytesRead > -1);
+		
+		bos.write(array, 0, actual);
+		bos.flush();
+		fos.close();
+		bos.close();
+		writePW(pw, S_OK);
 	}
 
 	public void iniLogout(String us, PrintWriter pw)throws Exception{

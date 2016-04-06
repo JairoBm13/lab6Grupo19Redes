@@ -65,23 +65,22 @@ public class InterfazPrincipal extends JFrame implements ActionListener{
 		String comando = e.getActionCommand();
 		if (LOGIN.equals(comando))
 		{
-			login(txtUser.getText(), txtPwd.getPassword());
+			login(txtUser.getText(), new String(txtPwd.getPassword()));
 		}
 		if (REGISTRO.equals(comando))
 		{
-			registro(txtUser.getText(), txtPwd.getPassword());
+			registro(txtUser.getText(), new String(txtPwd.getPassword()));
 		}
 	}
 
-	public void login(String text, char[] password) {
+	public void login(String text, String password) {
 		ClienteTCP.login(text, password);
 		this.setVisible(false);
 		video = new IntVideo(clienteTCP);
 		video.setVisible(true);
 	}
 
-	public void registro(String text, char[] password) {
-		System.out.println(new String(password, 0, password.length));
+	public void registro(String text, String password) {
 		String result = ClienteTCP.register(text, password);
 		if (result.equals("registered")){
 			JOptionPane.showMessageDialog(this,"Usted ha sido registrado");
