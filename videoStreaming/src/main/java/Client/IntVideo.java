@@ -63,6 +63,11 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 		playButton.addActionListener(this);
 		pauseButton.addActionListener(this);
 		tearButton.addActionListener(this);
+		
+		setupButton.setActionCommand(SETUP);
+		playButton.setActionCommand(PLAY);
+		pauseButton.setActionCommand(PAUSE);
+		tearButton.setActionCommand(UPLOAD);
 
 
 		//Image display label
@@ -95,7 +100,7 @@ public class IntVideo extends JFrame implements ActionListener,ListSelectionList
 	public void createJFileChooser()
 	 {
 		  JFileChooser fileChooser=new JFileChooser();
-		   fileChooser.showOpenDialog(null);
+		   fileChooser.showOpenDialog(this);
 		   File open=fileChooser.getSelectedFile();
 		   if (open != null) {
 			   String file= open.getAbsolutePath();

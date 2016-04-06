@@ -199,7 +199,7 @@ public class ComunicacionTCP extends Thread{
 	public void iniSubir(BufferedReader br, PrintWriter pw, String us, String filename)throws Exception{
 		writePW(pw, S_OK);
 		byte[] array = new byte[60000];
-		FileOutputStream fos = new FileOutputStream(RUTA_BASE + filename);
+		FileOutputStream fos = new FileOutputStream(RUTA_BASE + us + "/" +filename);
 		BufferedOutputStream bos = new BufferedOutputStream(fos);
 		int actual = 0;
 		int bytesRead = in.read(array, 0, array.length);
