@@ -103,7 +103,7 @@ public class ComunicacionTCP extends Thread{
 				verificarToken(us, token);
 
 				if(msjIni.startsWith(C_SUBIR)){
-					iniSubir(br, pw, us);
+					iniSubir(br, pw, us, msjIni.split(":::")[3]);
 				}
 				else if(msjIni.startsWith(C_LISTA)){
 
@@ -196,10 +196,10 @@ public class ComunicacionTCP extends Thread{
 
 	}
 
-	public void iniSubir(BufferedReader br, PrintWriter pw, String us)throws Exception{
+	public void iniSubir(BufferedReader br, PrintWriter pw, String us, String filename)throws Exception{
 		writePW(pw, S_OK);
 		byte[] array = new byte[60000];
-		FileOutputStream fos = new FileOutputStream(RUTA_BASE + "tempVideo.mp4");
+		FileOutputStream fos = new FileOutputStream(RUTA_BASE + filename);
 		BufferedOutputStream bos = new BufferedOutputStream(fos);
 		int actual = 0;
 		int bytesRead = in.read(array, 0, array.length);

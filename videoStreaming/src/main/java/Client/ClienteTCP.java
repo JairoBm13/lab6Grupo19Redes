@@ -70,7 +70,7 @@ public class ClienteTCP extends Thread{
 			BufferedReader br = new BufferedReader(new InputStreamReader(in));
 			PrintWriter pw = new PrintWriter(out, true);
 			
-			writePW(pw, C_SUBIR + ":::"+us+":::"+token);
+			writePW(pw, C_SUBIR + ":::"+us+":::"+token+":::"+name);
 			
 			String sMsj = readBR(br);
 			if (sMsj.equals(S_OK)){
